@@ -4,7 +4,9 @@
 <script src="{$systemurl}modules/servers/v2ray/templates/LegendSock/javascripts/qrcode.js"></script>
 <script src="{$systemurl}modules/servers/v2ray/templates/LegendSock/javascripts/common.js"></script>
 <script src="{$systemurl}modules/servers/v2ray/templates/LegendSock/javascripts/chart.js"></script>
+<script src="{$systemurl}modules/servers/v2ray/templates/LegendSock/javascripts/clipboard.min.js"></script>
 
+<script src="{$systemurl}modules/servers/v2ray/templates/LegendSock/javascripts/custom.js"></script>
 <style>
     #QRCode_HTML {
         display: none;
@@ -54,96 +56,6 @@
         var chart = document.getElementById("myChart").getContext("2d");
         window.myLine = new Chart(chart, myChart);
     };
-    $(document).ready(function($) {
-        // 声明一个 QRCode，选择 id 为 qrcode 的元素
-        var qrcode = new QRCode("QRCode", {
-            text: "default",
-            width: 280,
-            height: 280,
-            colorDark : "#000",
-            colorLight : "#FFF",
-            correctLevel : QRCode.CorrectLevel.L
-        });
-        // 定义 name 为 qrcode 的元素按下时的事件
-        $("[name='qrcode']").on('click',function() {
-            qrcode.clear(); // 清空图像
-            // QR 的名字
-            qrname = $(this).attr('data-qrname');
-            // QR 的主体内容
-            var qrcontent = $(this).attr('data-qrcode');
-            // 判断是 Shadowsocks 还是其他的二维码
-            switch (qrname) {
-                case 'Shadowsocks':
-                    // 如果是 Shadowsocks
-                    qrcontent = 'ss://' + window.btoa(qrcontent);
-                    break;
-                case 'ShadowsocksR':
-                    // 如果是 ShadowsocksR
-                    qrcontent = 'ssr://' + window.btoa(qrcontent);
-                    break;
-                case 'V2ray':
-                    qrcontent = qrcontent;
-                    break;
-                default:
-                    // 默认什么都不做
-                    break;
-            }
-            
-            if ($(this).attr('data-client')) {
-                qrname = qrname + $(this).attr('data-client');
-            }
-            // 生成另一个图像
-            qrcode.makeCode(qrcontent);
-            // 弹出层
-            layer.open({
-                type: 1,
-                title: $(this).attr('title'),
-                shade: [0.8, '#000'],
-                skin: 'layui-layer-demo',
-                closeBtn: 1,
-                shift: 2,
-                shadeClose: true,
-                content: document.getElementById('QRCode_HTML').innerHTML + '<p>{$LS_LANG['qrcode']['0']} ' + qrname + ' {$LS_LANG['qrcode']['1']}</p>'
-            });
-        });
-        $("[name='v2raylink']").on('click', function() {
-            layer.open({
-                type: 1,
-                title: $(this).attr('title'),
-                shade: [0.8, '#000'],
-                skin: 'layui-layer-demo',
-                closeBtn: 1,
-                shift: 2,
-                shadeClose: true,
-                content: '<p style="word-wrap:break-word;text-align:left;padding: 15px">' + $(this).attr('data-link') + '</p>'
-            })
-        });
-        $("[name='guiconfig']").on('click',function() {
-            function download(fileName, blob){
-                var aLink = document.createElement('a');
-                var evt = document.createEvent("MouseEvents");
-                evt.initEvent('click', true, false, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
-                aLink.download = fileName;
-                aLink.href = URL.createObjectURL(blob);
-                aLink.dispatchEvent(evt);
-            }
-
-            function stringToBlob(text) {
-                var u8arr = new Uint8Array(text.length);
-                for (var i = 0, len = text.length; i < len; ++i) {
-                    u8arr[i] = text.charCodeAt(i);
-                }
-                var blob = new Blob([u8arr]);
-                return blob;
-            }
-            var json_content = $(this).attr('data-guiconfig');
-            json_content = window.atob(json_content);
-            json_content = json_content.replace(/\r\n|\n/g,"");
-            json_content = json_content.replace(/\'/ig,"\"");
-            var blob = stringToBlob(JSON.stringify(JSON.parse(json_content),null,2));
-            download('gui-config.json', blob);
-        });
-    });
 </script>
 
 <div id="QRCode_HTML">
@@ -208,7 +120,7 @@
         </ul>
     </div>
 
-    <div class="tab-content">
+    <div class="col-md-12 tab-content" style="padding: 0">
         <div role="tabpanel" class="tab-pane active" id="home">
             <div class="col-md-12">
                 <div class="panel panel-info">
@@ -224,15 +136,31 @@
                                 <th>{$LS_LANG['product']['v2ray_alter_id']}</th>
                                 <th>{$LS_LANG['product']['v2ray_level']}</th>
                                 <th>{$LS_LANG['product']['lastTime']}</th>
+                                {if $apiUrl neq ''}<th>订阅地址</th>{/if}
+                                <th>安全</th>
                             </tr>
                             </thead>
                             <tbody>
                             <tr>
                                 <td style="width: 10%;">{$serviceid}</td>
-                                <td style="width: 45%;"><span id="userId" onclick="javascript:document.getElementById('userId').innerHTML='{$info['v2ray_uuid']}';">{$LS_LANG['product']['show']}</span></td>
-                                <td style="width: 10%;">{$info['v2ray_alter_id']}</td>
-                                <td style="width: 10%;">{$info['v2ray_level']}</td>
-                                <td style="width: 25%;">{$info['t']|date_format:'%Y-%m-%d, %H:%M'}</td>
+                                <td style="width: 40%;"><span id="userId" onclick="javascript:document.getElementById('userId').innerHTML='{$info['v2ray_uuid']}';">{$LS_LANG['product']['show']}</span></td>
+                                <td style="width: 5%;">{$info['v2ray_alter_id']}</td>
+                                <td style="width: 5%;">{$info['v2ray_level']}</td>
+                                <td style="width: 20%;">{$info['t']|date_format:'%Y-%m-%d, %H:%M'}</td>
+                                {if $apiUrl neq ''}
+                                <td style="width: 15%">
+                                  <button type="button" class="btn btn-info btn-xs autoset" data-qrname="V2ray" data-link="{$apiUrl}?token={$uuid}&s=v2ray.subscribe&pid={$serviceid}" data-client="shadowrocket/v2rayNG/v2rayN/Quantumult" title="订阅地址" name="v2raylink" data-clipboard-text="{$apiUrl}?token={$uuid}&s=v2ray.subscribe&pid={$serviceid}">
+                                    <span class="glyphicon glyphicon-link" aria-hidden="true"></span> 点击复制
+                                  </button>
+                                </td>
+                                {/if}
+                                <td style="width: 5%">
+                                    <div class="btn-group btn-group-xs" role="group" aria-label="Extra-small button group">
+                                      <button type="button" class="btn btn-info btn-xs autoset" id="securityReset">
+                                        <span class="glyphicon glyphicon-refresh" aria-hidden="true"></span> 重置
+                                      </button>
+                                    </div>
+                                </td>
                             </tr>
                             </tbody>
                         </table>
@@ -280,7 +208,8 @@
                                 <th style="width: 10%;">{$LS_LANG['node']['port']}</th>
                                 <th style="width: 10%;">{$LS_LANG['node']['security']}</th>
                                 <th style="width: 20%;">{$LS_LANG['node']['remarks']}</th>
-                                <th style="width: 30%;">{$LS_LANG['node']['qrcode']}</th>
+                                <th style="width: 5%;">{$LS_LANG['node']['isTLS']}</th>
+                                <th style="width: 25%;">{$LS_LANG['node']['qrcode']}</th>
                             </tr>
                             </thead>
                             <tbody>
@@ -293,14 +222,20 @@
                                         <td>{$value[2]|trim}</td>
                                         <td>{$value[3]|trim}</td>
                                         <td>{$value[4]|trim}</td>
+                                        <td>{if $value[5] eq 1}<span class="c-badge c-badge--success">√</span>{else}<span class="c-badge c-badge--danger">×</span>{/if}</td>
                                         <td>
                                             <div class="btn-group btn-group-xs" role="group" aria-label="Extra-small button group">
-                                                <button type="button" class="btn btn-info btn-xs autohides" data-qrname="V2ray" data-qrcode="{$extend[$key]['v2rayOtherUrl']}" data-client="Android" title="{$LS_LANG['node']['v2ray']['title']}" name="qrcode">
+                                                <button type="button" class="btn btn-info btn-xs autohides" data-qrname="V2ray" data-qrcode="{$extend[$key]['v2rayOtherUrl']}" data-client="shadowrocket/v2rayNG/v2rayN" title="{$LS_LANG['node']['v2ray']['title']}" name="qrcode">
                                                     <span class="fa fa-qrcode" aria-hidden="true"></span>
                                                 </button>
                                             </div>
                                             <div class="btn-group btn-group-xs" role="group" aria-label="Extra-small button group">
-                                                <button type="button" class="btn btn-info btn-xs autoset" data-qrname="V2ray" data-link="{$extend[$key]['v2rayOtherUrl']}" data-client="iOS" title="{$LS_LANG['node']['v2ray']['titleUri']}" name="v2raylink">
+                                                <button type="button" class="btn btn-info btn-xs autohides" data-qrname="V2ray" data-qrcode="{$extend[$key]['quantumultUrl']}" data-client="Quantumult" title="{$LS_LANG['node']['v2ray']['title']}" name="qrcode">
+                                                    Q</span>
+                                                </button>
+                                            </div>
+                                            <div class="btn-group btn-group-xs" role="group" aria-label="Extra-small button group">
+                                                <button type="button" class="btn btn-info btn-xs autoset" data-qrname="V2ray" data-client="shadowrocket/v2rayNG/v2rayN" title="{$LS_LANG['node']['v2ray']['titleUri']}" name="v2raylink" data-clipboard-text="{$extend[$key]['v2rayOtherUrl']}">
                                                     <span class="glyphicon glyphicon-link" aria-hidden="true"></span> {$LS_LANG['node']['v2ray']['importUri']}
                                                 </button>
                                             </div>
